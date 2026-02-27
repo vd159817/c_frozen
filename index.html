@@ -107,6 +107,31 @@ body{background:#0A1E35;color:var(--ice1);font-family:'Nunito',sans-serif;overfl
 
 
 
+/* ── IMAGEN A — halo igual que olaf-img ── */
+.img-a-wrap{position:relative;display:flex;justify-content:center;}
+.img-a-wrap canvas{position:absolute;inset:0;pointer-events:none;z-index:2;border-radius:20px;}
+.img-a{
+  display:block;width:100%;height:auto;border-radius:20px;
+  filter:
+    drop-shadow(0 0 28px rgba(200,240,255,0.8))
+    drop-shadow(0 0 60px rgba(130,195,255,0.45))
+    drop-shadow(0 0 110px rgba(90,170,255,0.25));
+  animation:imgAGlow 4s ease-in-out infinite;
+  position:relative;z-index:1;
+}
+@keyframes imgAGlow{
+  0%,100%{filter:
+    drop-shadow(0 0 22px rgba(185,232,255,0.7))
+    drop-shadow(0 0 55px rgba(130,200,255,0.4))
+    drop-shadow(0 0 90px rgba(90,165,255,0.2));
+  }
+  50%{filter:
+    drop-shadow(0 0 38px rgba(210,245,255,1))
+    drop-shadow(0 0 80px rgba(160,220,255,0.65))
+    drop-shadow(0 0 130px rgba(110,185,255,0.35));
+  }
+}
+
 /* ── IMAGE ROW sin marcos ── */
 .img-row{
   position:relative;z-index:1;padding:2rem 1rem 4rem;
@@ -261,8 +286,9 @@ section{position:relative;z-index:1;padding:5rem 1.5rem;}
 
 <!-- ══════ IMAGEN A ══════ -->
 <div class="video-section reveal">
-  <div class="video-wrap">
-    <img src="a.png" alt="Frozen" style="display:block;width:100%;height:auto;border-radius:20px;">
+  <div class="video-wrap img-a-wrap">
+    <canvas id="snow-a"></canvas>
+    <img src="a.png" alt="Frozen" class="img-a">
   </div>
 </div>
 
@@ -421,18 +447,63 @@ section{position:relative;z-index:1;padding:5rem 1.5rem;}
   }
   draw();
 
-  function spawnBurst(ex,ey){
+  function spawnBurst(ex,ey,isTouched){
     const rect=hc.getBoundingClientRect();
     const x=ex-rect.left, y=ey-rect.top;
+    const speedMult=isTouched?2.6:1;
+    const upMult=isTouched?5:2.5;
     for(let i=0;i<28;i++){
       const ang=Math.PI*2*i/28+(Math.random()-0.5)*0.5;
-      const sp=Math.random()*6+2;
+      const sp=(Math.random()*6+2)*speedMult;
       const h=195+Math.random()*40;
-      magicSparks.push({x,y,vx:Math.cos(ang)*sp,vy:Math.sin(ang)*sp-2.5,r:Math.random()*3+0.8,life:1,color:`hsla(${h},85%,92%,0.95)`});
+      magicSparks.push({x,y,vx:Math.cos(ang)*sp,vy:Math.sin(ang)*sp-upMult,r:Math.random()*3+0.8,life:1,color:`hsla(${h},85%,92%,0.95)`});
     }
   }
-  hero.addEventListener('click',e=>{spawnBurst(e.clientX,e.clientY);});
-  hero.addEventListener('touchstart',e=>{for(const t of e.touches)spawnBurst(t.clientX,t.clientY);},{passive:true});
+  hero.addEventListener('click',e=>{spawnBurst(e.clientX,e.clientY,false);});
+  hero.addEventListener('touchstart',e=>{for(const t of e.touches)spawnBurst(t.clientX,t.clientY,true);},{passive:true});
+})();
+
+/* ═══ NIEVE SUAVE sobre a.png ═══ */
+(function(){
+  const wrap=document.querySelector('.img-a-wrap');
+  const c=document.getElementById('snow-a');
+  if(!c||!wrap)return;
+  function resize(){c.width=wrap.offsetWidth;c.height=wrap.offsetHeight;}
+  resize();
+  window.addEventListener('resize',resize);
+  const cx=c.getContext('2d');
+  const flakes=[];
+  for(let i=0;i<28;i++){
+    flakes.push({
+      x:Math.random()*c.width, y:Math.random()*c.height,
+      r:Math.random()*2.2+0.6,
+      speed:Math.random()*0.35+0.08,
+      drift:(Math.random()-0.5)*0.25,
+      alpha:Math.random()*0.45+0.15,
+      wobble:Math.random()*Math.PI*2,
+      wobbleS:Math.random()*0.012+0.003,
+    });
+  }
+  function draw(){
+    cx.clearRect(0,0,c.width,c.height);
+    for(const f of flakes){
+      f.y+=f.speed; f.wobble+=f.wobbleS;
+      f.x+=f.drift+Math.sin(f.wobble)*0.18;
+      if(f.y>c.height+6){f.y=-6;f.x=Math.random()*c.width;}
+      if(f.x>c.width+6)f.x=-6; if(f.x<-6)f.x=c.width+6;
+      const g=cx.createRadialGradient(f.x,f.y,0,f.x,f.y,f.r*3);
+      g.addColorStop(0,`rgba(220,240,255,${f.alpha})`);
+      g.addColorStop(1,'rgba(0,0,0,0)');
+      cx.fillStyle=g;
+      cx.beginPath();cx.arc(f.x,f.y,f.r*3,0,Math.PI*2);cx.fill();
+      cx.globalAlpha=f.alpha;
+      cx.fillStyle='#eef8ff';
+      cx.beginPath();cx.arc(f.x,f.y,f.r,0,Math.PI*2);cx.fill();
+      cx.globalAlpha=1;
+    }
+    requestAnimationFrame(draw);
+  }
+  draw();
 })();
 
 /* ═══ COUNTDOWN ═══ */
